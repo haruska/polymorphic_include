@@ -1,0 +1,23 @@
+PolymorphicInclude
+==================
+
+Polymorphic associations in Ruby on Rails seem like a good idea until it
+comes time to join the tables back together. Since it is impossible to eager
+load the data with a :include parameter, we're doing the next best thing.
+We have Content objects that have two polymorphic associations (content type
+and source). When trying to show search results you actually need all of the
+data which means it is two additional queries per tuple. Instead, we reduced
+it to k queries per page where k is the number of different types of objects.
+Enough chatting, here's the code for overriding the find method. It
+assumes you are using the default "_type" suffix. With this code you can just
+use a :include directive in your finds and it will return your associations
+instead of throwing an exception.
+
+
+Example
+=======
+
+Example goes here.
+
+
+Copyright (c) 2008 Jason Haruska, released under the MIT license
