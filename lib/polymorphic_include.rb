@@ -5,14 +5,9 @@ module PolymorphicInclude
    class << object
      
      #alias method chain both find and find_every to polymorphic_include
-     ["_", "_every_"].each do |func|
-       #function names
-       old_func = "find" + func.gsub(/_$/, '') #find or find_every
-       with_func = "find#{func}with_polymorphic_include" #find_(every_)with_polymorphic_include
-       without_func = "find#{func}without_polymorphic_include" #find_(every_)without_polymorphic_include
-       
-       alias_method without_func, old_func unless method_defined?(without_func)
-       alias_method old_func, with_func  
+     %w[find find_every].each do |func|
+       alias_method "#{func}_without_polymorphic_include", func unless method_defined?("#{func}_without_polymorphic_include")
+       alias_method func, "#{func}_with_polymorphic_include" 
      end
      
    end
@@ -20,14 +15,13 @@ module PolymorphicInclude
   
 
   # These are the alias method chaining for both "find" and "find_every"
-  
-  ["_", "_every_"].each do |func|
-    self.send(:define_method, "find#{func}with_polymorphic_include") do |*args|
+  %w[find find_every].each do |func|
+    self.send(:define_method, "#{func}_with_polymorphic_include") do |*args|
       options = args.last.is_a?(Hash) ? args.last : {}
       poly_includes = {}
       # Try the regular find, if it throws the polymorph error, then we need to do extra processing
       begin
-        res = self.send "find#{func}without_polymorphic_include", *args
+        res = self.send "#{func}_without_polymorphic_include", *args
       rescue ActiveRecord::EagerLoadPolymorphicError => e
         # remove the polymorph :includes and retry regular find
         sym = e.message.split.last.sub(/^:/,'').to_sym
