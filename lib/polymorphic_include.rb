@@ -1,18 +1,13 @@
 # PolymorphicInclude
 module PolymorphicInclude
 
- def self.extended(object)
-   class << object
-     
-     #alias method chain both find and find_every to polymorphic_include
-     %w[find find_every].each do |func|
-       alias_method "#{func}_without_polymorphic_include", func unless method_defined?("#{func}_without_polymorphic_include")
-       alias_method func, "#{func}_with_polymorphic_include" 
-     end
-     
-   end
- end
-  
+  def self.extended(object)
+    class << object
+      [:find, :find_every].each do |func|
+        alias_method_chain func, :polymorphic_include
+      end
+    end
+  end
 
   # These are the alias method chaining for both "find" and "find_every"
   %w[find find_every].each do |func|
