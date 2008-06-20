@@ -48,6 +48,7 @@ module PolymorphicInclude
         if res.respond_to? :group_by
           res.group_by {|r| r.send "#{sym.to_s}_type"}.each do |stype, set|
             begin
+              next if stype.nil?
               stype_class = Object.const_get stype
               id_sym = "#{sym.to_s}_id".to_sym
               ids = set.collect(&id_sym)
