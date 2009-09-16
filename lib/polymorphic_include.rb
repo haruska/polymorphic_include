@@ -1,4 +1,3 @@
-# PolymorphicInclude
 module PolymorphicInclude
 
   def self.extended(object)
@@ -12,7 +11,7 @@ module PolymorphicInclude
   # These are the alias method chaining for both "find" and "find_every"
   %w[find find_every].each do |func|
     define_method("#{func}_with_polymorphic_include") do |*args|
-      options = args.dup.extract_options!
+      options = args.last.is_a?(::Hash) ? args.last : {}
       poly_includes = {}
       # Try the regular find, if it throws the polymorph error, then we need to do extra processing
       begin
