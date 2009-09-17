@@ -29,19 +29,35 @@ ActiveRecord::Schema.define do
   create_table "children", :force => true do |t|
     t.column "parent_type", :string
     t.column "parent_id", :integer
+    t.column "toy_id", :integer
+    t.column "name", :string
+  end
+
+  create_table "pets", :force => true do |t|
+    t.column "owner_type", :string
+    t.column "owner_id", :integer
+    t.column "name", :string
+  end
+
+  create_table "toys", :force => true do |t|
     t.column "name", :string
   end
 end
 
 class Mother < ActiveRecord::Base
-  has_many :children
+  has_many :children, :as => :parent
 end
 
 class Father < ActiveRecord::Base
-  has_many :children
+  has_many :children, :as => :parent
 end
 
 class Child < ActiveRecord::Base
   belongs_to :parent, :polymorphic => true
+  belongs_to :toy
+end
+
+class Toy < ActiveRecord::Base
+  has_one :child
 end
 
