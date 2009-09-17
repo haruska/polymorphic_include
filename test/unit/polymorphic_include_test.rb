@@ -8,10 +8,11 @@ class PolymorphicIncludeTest < Test::Unit::TestCase
     @father = Father.create
     @child = Child.create :parent => @mother
     @child2 = Child.create :parent => @father
+    @toy = Toy.create :child => @child
   end
 
   def teardown
-    [Mother, Father, Child].each {|obj| obj.destroy_all}
+    [Mother, Father, Child, Toy].each {|obj| obj.destroy_all}
   end
 
   def test_single_element
