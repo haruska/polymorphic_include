@@ -18,9 +18,13 @@ module PolymorphicInclude
         res = self.send "#{func}_without_polymorphic_include", *args
       rescue ActiveRecord::EagerLoadPolymorphicError => e
         # remove the polymorph :includes and retry regular find
+        scope_includes = scope(:find)[:include] if scope(:find) and scope(:find).has_key?(:include)
         sym = e.message.split.last.sub(/^:/,'').to_sym
-        inc = options[:include]
+        inc = options[:include] || scope_includes
         logger.debug { "polymorph find triggered on: #{sym}, #{inc.inspect}" }
+        if inc.nil?
+          logger.debug {"#{func} couldn't find :include; so far #{poly_includes.inspect} from args #{args.inspect}"} 
+        end
         # we preserve any sub_includes for the polymorph for use when doing the
         # polymorph find.  This doesn't support recursive polymorph structures
         poly_sub_includes = nil
