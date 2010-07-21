@@ -30,4 +30,8 @@ class PolymorphicIncludeTest < Test::Unit::TestCase
   def test_mix_of_polymorphic_and_single_includes
     assert_nothing_raised { Child.find(:all, :include => [:toy, :parent]) }    
   end
+
+  def test_count
+    assert_nothing_raised { Child.count(:all, :include => :parent) }
+  end
 end

@@ -3,6 +3,7 @@ $LOAD_PATH.unshift << ENV['ACTIVERECORD_PATH'] unless ENV['ACTIVERECORD_PATH'].n
 require 'rubygems'
 require 'test/unit'
 require 'active_record'
+require 'fileutils'
 
 
 log_path = File.join(File.dirname(__FILE__), '..', 'log')
