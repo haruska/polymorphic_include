@@ -1,4 +1,4 @@
-# TODO: Support nested polymorphic hashes
+# TODO: Support nested polymorphic hashes See line 105
 
 module PolymorphicInclude
 
@@ -100,9 +100,10 @@ module PolymorphicInclude
     # If the include is a symbol or string, just remove it if it is a polymorphic reflection
     case find_options[:include]
     when Hash
-      raise "This feature has not been fully implemented. add_removed_to_results needs to support non-belongs_to assocations for this to work"
       find_options[:include].reject! do |k,v|
         if has_polymorphic_include?({k => v})
+          raise "This feature has not been fully implemented. add_removed_to_results needs to support non-belongs_to assocations for this to work"
+
           logger.debug{"polymorphic include found in #{k} => #{v}"}
           polymorphic_includes[k] = v
           true
