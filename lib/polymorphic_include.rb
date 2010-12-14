@@ -1,3 +1,5 @@
+# TODO: Support nested polymorphic hashes
+
 module PolymorphicInclude
 
   def self.extended(object)
@@ -11,7 +13,7 @@ module PolymorphicInclude
   define_method("calculate_with_polymorphic_include") do |*args|
     begin
       res = self.send "calculate_without_polymorphic_include", *args
-    rescue ActiveRecord::EagerLoadPolymorphicError => e
+    rescue ActiveRecord::EagerLoadPolymorphicError
       # Detect and remove all polymorphic associations
       find_args_without_poly_includes, poly_includes, scope_override = remove_polymorphic_includes(args)
       
@@ -34,9 +36,9 @@ module PolymorphicInclude
         # Detect and remove all polymorphic associations
         find_args_without_poly_includes, poly_includes, scope_override = remove_polymorphic_includes(args)
         
-#        logger.debug{ "find_options_without_poly_includes: #{find_args_without_poly_includes}"}
-#        logger.debug{ "poly_includes: #{poly_includes}"}
-#        logger.debug{ "scope_override: #{scope_override}"}
+        #        logger.debug{ "find_options_without_poly_includes: #{find_args_without_poly_includes}"}
+        #        logger.debug{ "poly_includes: #{poly_includes}"}
+        #        logger.debug{ "scope_override: #{scope_override}"}
         
         # Retry the original find, but apply an exclusive scope without the polymorphic includes
         res = with_exclusive_scope(:find => scope_override) do
@@ -66,18 +68,15 @@ module PolymorphicInclude
       scope_override[:include] = scope_override[:include].dup
     
       # Remove all polymorphic associations from the scope and remember them in the polymorphic includes list
-      polymorphic_includes.merge!(remove_polymorphic_associations_from_includes!(scope_override[:include]))
+      polymorphic_includes.merge!(remove_polymorphic_includes_from_find_options!(scope_override))
       #      logger.debug{"scope_override includes: #{scope_override[:include].inspect}"}
     end
     
     
     if find_options.has_key?(:include)
-      # Wrap the includes in an array so we can iterate through them easily
-      find_options[:include] = [find_options[:include]] unless find_options[:include].is_a?(Array)
-
-      # Iterate through each include and move it to the polymorphic includes if it is one
+      # Move any polymorphic includes to +polymorphic_includes+
       #            logger.debug{ "find_option includes: #{find_options[:include]}"}
-      polymorphic_includes.merge!(remove_polymorphic_associations_from_includes!(find_options[:include]))
+      polymorphic_includes.merge!(remove_polymorphic_includes_from_find_options!(find_options))
     end 
     
     # Reassemble the find_args
@@ -90,30 +89,61 @@ module PolymorphicInclude
   end
   
   
-  # Removes all polymorphic associations from the array of +includes+
+  # Removes all polymorphic associations from the find options +includes+ passed
   # Returns a hash of the polymorphic includes that were present and their values
-  def remove_polymorphic_associations_from_includes!(includes)
+  def remove_polymorphic_includes_from_find_options!(find_options)
     polymorphic_includes = {}
-    includes.each do |inc|
-      # If the include is a hash, eg {:discussions => :comments, :projects => :members}
-      # Else the include is a single association name, eg. :comments
-      case inc
-      when Hash
-        inc.reject! do |association, value|
-          if polymorphic_reflections.has_key?(association)
-            polymorphic_includes[association] = value
-            true
-          end
+    
+    # If the includes are a hash, iterate through each key and value, and remove any key that is polymorphic, or that has a value that has a polymorphic include
+    # If the includes are an array, iterate through each value and treat it as if it was an entire find options, removing the includes from it. Those
+    # includes are then returned and merged
+    # If the include is a symbol or string, just remove it if it is a polymorphic reflection
+    case find_options[:include]
+    when Hash
+      raise "This feature has not been fully implemented. add_removed_to_results needs to support non-belongs_to assocations for this to work"
+      find_options[:include].reject! do |k,v|
+        if has_polymorphic_include?({k => v})
+          logger.debug{"polymorphic include found in #{k} => #{v}"}
+          polymorphic_includes[k] = v
+          true
         end
-      else
-        if polymorphic_reflections.has_key?(inc.to_sym)
-          polymorphic_includes[inc] = nil
-          includes.delete(inc)
+      end
+    when Array
+      logger.debug{"checking #{find_options[:include]} for polymorphic includes"}
+      find_options[:include].reject! do |v|
+        logger.debug{"examining #{v}"}
+        found = remove_polymorphic_includes_from_find_options!({:include => v})
+        unless found.empty?
+          logger.debug{"merging #{found} with #{polymorphic_includes}"}
+          polymorphic_includes.merge! found
+          true
         end
-      end      
+      end
+    when Symbol, String
+      if polymorphic_reflections.has_key?(find_options[:include])
+        polymorphic_includes[find_options[:include]] = nil
+        find_options[:include] = nil 
+      end
     end
     
     return polymorphic_includes
+  end
+  
+  # Recurses a key and value pair from a hash, checking to see if any includes are polymorphic
+  def has_polymorphic_include?(include)
+    logger.debug{"Checking #{include} for polymorphic includes"} 
+    case include
+    when Hash
+      include.any? do |k,v|
+        # Check if the key is a polymorphic association or check if the value is a polymorphic include of the association class
+        logger.debug{"Checking nested include #{k} for polymorphic includes"}
+        polymorphic_reflections.has_key?(k.to_sym) || reflections[k.to_sym].class_name.constantize.send(:has_polymorphic_include?, v)
+      end
+    when Array
+      include.any?{|i| has_polymorphic_include?(i)}
+    when Symbol, String
+      polymorphic_reflections.has_key?(include.to_sym)
+    end
   end
   
   # Returns this model's polymorphic reflections
@@ -126,7 +156,7 @@ module PolymorphicInclude
   # in the parent object from normal find
   def add_removed_includes_to_results(res, poly_includes)
     poly_includes.each do |sym, sub_includes|
-      #      logger.debug{ " Iterating #{sym}"}
+      logger.debug{ " Iterating #{sym}"}
       if res.respond_to? :group_by
         res.group_by {|r| r.send "#{sym.to_s}_type"}.each do |stype, set|
           begin
@@ -139,7 +169,7 @@ module PolymorphicInclude
             sources_map = {}
             sources.each {|s| sources_map[s.id] = s}
             set.each do |c|
-              #              logger.debug{ "assigning #{c.class} #{c.id} #{sym.to_s}=#{sources_map[c.attributes[id_sym.to_s]]}"}
+              logger.debug{ "assigning #{c.class} #{c.id} #{sym.to_s}=#{sources_map[c.attributes[id_sym.to_s]]}"}
               c.send("#{sym.to_s}=", sources_map[c.attributes[id_sym.to_s]])
             end
           rescue ActiveRecord::ConfigurationError => e
