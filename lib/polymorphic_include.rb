@@ -104,18 +104,18 @@ module PolymorphicInclude
         if has_polymorphic_include?({k => v})
           raise "This feature has not been fully implemented. add_removed_to_results needs to support non-belongs_to assocations for this to work"
 
-          logger.debug{"polymorphic include found in #{k} => #{v}"}
+#          logger.debug{"polymorphic include found in #{k} => #{v}"}
           polymorphic_includes[k] = v
           true
         end
       end
     when Array
-      logger.debug{"checking #{find_options[:include]} for polymorphic includes"}
+#      logger.debug{"checking #{find_options[:include]} for polymorphic includes"}
       find_options[:include].reject! do |v|
-        logger.debug{"examining #{v}"}
+#        logger.debug{"examining #{v}"}
         found = remove_polymorphic_includes_from_find_options!({:include => v})
         unless found.empty?
-          logger.debug{"merging #{found} with #{polymorphic_includes}"}
+#          logger.debug{"merging #{found} with #{polymorphic_includes}"}
           polymorphic_includes.merge! found
           true
         end
@@ -132,12 +132,12 @@ module PolymorphicInclude
   
   # Recurses a key and value pair from a hash, checking to see if any includes are polymorphic
   def has_polymorphic_include?(include)
-    logger.debug{"Checking #{include} for polymorphic includes"} 
+#    logger.debug{"Checking #{include} for polymorphic includes"} 
     case include
     when Hash
       include.any? do |k,v|
         # Check if the key is a polymorphic association or check if the value is a polymorphic include of the association class
-        logger.debug{"Checking nested include #{k} for polymorphic includes"}
+#        logger.debug{"Checking nested include #{k} for polymorphic includes"}
         polymorphic_reflections.has_key?(k.to_sym) || reflections[k.to_sym].class_name.constantize.send(:has_polymorphic_include?, v)
       end
     when Array
@@ -157,7 +157,7 @@ module PolymorphicInclude
   # in the parent object from normal find
   def add_removed_includes_to_results(res, poly_includes)
     poly_includes.each do |sym, sub_includes|
-      logger.debug{ " Iterating #{sym}"}
+#      logger.debug{ " Iterating #{sym}"}
       if res.respond_to? :group_by
         res.group_by {|r| r.send "#{sym.to_s}_type"}.each do |stype, set|
           begin
@@ -170,7 +170,7 @@ module PolymorphicInclude
             sources_map = {}
             sources.each {|s| sources_map[s.id] = s}
             set.each do |c|
-              logger.debug{ "assigning #{c.class} #{c.id} #{sym.to_s}=#{sources_map[c.attributes[id_sym.to_s]]}"}
+#              logger.debug{ "assigning #{c.class} #{c.id} #{sym.to_s}=#{sources_map[c.attributes[id_sym.to_s]]}"}
               c.send("#{sym.to_s}=", sources_map[c.attributes[id_sym.to_s]])
             end
           rescue ActiveRecord::ConfigurationError => e
@@ -179,7 +179,7 @@ module PolymorphicInclude
             assoc = e.message.match(/Association named '([^']+)'/).to_a[1]
             if assoc
               assoc = assoc.to_sym
-              logger.debug { "polymorph wrong assoc for polymorph: #{assoc}, #{sub_includes.inspect}" }
+#              logger.debug { "polymorph wrong assoc for polymorph: #{assoc}, #{sub_includes.inspect}" }
               if sub_includes == assoc
                 sub_includes = nil
               elsif sub_includes.is_a? Array
